@@ -25,7 +25,7 @@ add_filter( 'woocommerce_payment_gateways', 'add_to_woo_pesapal_payment_gateway'
 
 function woo_pesapal_payment_init() {
 	if ( class_exists( 'WC_Payment_Gateway' )) {
-		require_once plugin_dir_path( __FILE__ ) . '/includes/class-wc-peapal-payment-gateway.php';
+		require_once plugin_dir_path( __FILE__ ) . '/includes/class-wc-pesapal-payment-gateway.php';
 		require_once plugin_dir_path( __FILE__ ) . '/includes/pesapal-checkout-iframe.php';
 	}
 }

@@ -96,4 +96,22 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			),
 		);
 	}
+
+	/**
+	 * Process the payment and return the result.
+	 *
+	 * @param int $order_id Order ID.
+	 * @return array
+	 */
+	public function process_payment( $order_id ) {
+		$order = wc_get_order( $order_id );
+
+		if ( $order->get_total() > 0 ) {
+			$this->pesapal_order_processing( $order );
+		}
+	}
+
+	private function pesapal_order_processing( $order ) {
+		$order->update_status( 'Pending payment' );
+	}
 }
