@@ -107,11 +107,20 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 		$order = wc_get_order( $order_id );
 
 		if ( $order->get_total() > 0 ) {
-			$this->pesapal_order_processing( $order );
+			return $this->pesapal_order_processing( $order );
 		}
+
+		return array(
+			'result' => 'success',
+		);
 	}
 
 	private function pesapal_order_processing( $order ) {
 		$order->update_status( 'Pending payment' );
+
+		return array(
+			'result' => 'success',
+			'redirect' => $order->get_checkout_payment_url(),
+		);
 	}
 }
