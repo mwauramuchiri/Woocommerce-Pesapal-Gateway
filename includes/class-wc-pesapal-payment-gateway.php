@@ -27,6 +27,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 		$this->enable_for_methods = $this->get_option( 'enable_for_methods', array() );
 
     add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
+    add_action( 'woocommerce_pay_order_before_payment_' . $this->id, array( $this, 'process_pesapal_iframe_url' ), 10, 1 );
   }
 
   /**
@@ -123,4 +124,10 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			'redirect' => $order->get_checkout_payment_url(),
 		);
 	}
+
+	public function process_pesapal_iframe_url( $order ) {
+		// todo
+	}
+
+	// private function 
 }
