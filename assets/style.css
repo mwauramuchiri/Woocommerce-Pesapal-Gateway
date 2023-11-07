@@ -1,0 +1,19 @@
+.pesapal__iframe iframe {
+  min-height: 100vh;
+  /* min-width: 50vw; */
+  width: 100%;
+}
+
+.pesapal__iframe.iframe--error {
+  font-size: 20px;
+  color: #fff;
+  background-color: rgb(249, 71, 71);
+  padding: 20px 10px;
+  display: inline-block;
+  text-align: center;
+}
+
+.pesapal__iframe.iframe--error > * {
+  padding: 0;
+  margin: 0;
+}

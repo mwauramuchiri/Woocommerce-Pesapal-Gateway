@@ -6,6 +6,13 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
   public $instructions;
   public $enable_for_methods;
 
+	private $pesapal_endpoint_demo_url = 'https://cybqa.pesapal.com/pesapalv3';
+	private $pesapal_endpoint_production_url = 'https://pay.pesapal.com/v3';
+	private $authentication_api_url = '/api/Auth/RequestToken';
+  private $register_ipn_api_url = '/api/URLSetup/RegisterIPN';
+  private $get_ipn_list_api_url = '/api/URLSetup/GetIpnList';
+  private $submit_order_request_api_url = '/api/Transactions/SubmitOrderRequest';
+  private $get_transaction_status_api_url = '/api/Transactions/GetTransactionStatus';
 
   /**
 	 * Constructor for the gateway.
@@ -27,8 +34,9 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 		$this->enable_for_methods = $this->get_option( 'enable_for_methods', array() );
 
     add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
-    add_action( 'woocommerce_pay_order_before_payment_' . $this->id, array( $this, 'process_pesapal_iframe_url' ), 10, 1 );
-  }
+    add_action( 'woocommerce_pay_order_before_payment_' . $this->id, array( $this, 'process_pesapal_iframe_url' ), 1, 1 );
+		add_action( 'woocommerce_api_' . $this->id, array( $this, 'pesapal_ipn_handler' ));
+	}
 
   /**
 	 * Setup general properties for the gateway.
@@ -74,7 +82,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 				'description' => __( 'Add your Consumer Secret', 'woocommerce-pesapal-gateway' ),
 				'desc_tip'    => true,
 			),
-      'Production Mode'=> array(
+      'production_mode'=> array(
 				'title'       => __( 'Production Mode', 'woocommerce-pesapal-gateway' ),
 				'label'       => __( 'Go Live', 'woocommerce-pesapal-gateway' ),
 				'type'        => 'checkbox',
@@ -95,7 +103,29 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 				'default'     => __( 'Pesapal before delivery.', 'woocommerce-pesapal-gateway' ),
 				'desc_tip'    => true,
 			),
+			'dev_ipn_url'       => array(
+				'title'       => __( 'Dev IPN URL', 'woocommerce-pesapal-gateway' ),
+				'type'        => 'text',
+				'description' => __( 'IPN URL that pesapal API will call', 'woocommerce-pesapal-gateway' ),
+				'desc_tip'    => true,
+			),
 		);
+	}
+
+	public function get_pesapal_endpoint_url() {
+		if ( 'yes' === $this->get_option( 'production_mode' ) ) {
+			return $this->pesapal_endpoint_production_url;
+		}
+
+		return $this->pesapal_endpoint_demo_url;
+	}
+
+	public function get_pesapal_ipn_url() {
+		if ( 'yes' === $this->get_option( 'production_mode' ) ) {
+			return home_url() . '/wc-api/' . $this->id;
+		}
+
+	 	return $this->get_option( 'dev_ipn_url', home_url() . '/wc-api/' . $this->id );
 	}
 
 	/**
@@ -126,8 +156,169 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 	}
 
 	public function process_pesapal_iframe_url( $order ) {
-		// todo
+		$authenticationResponse = $this->authenticate();
+
+		if ( false === $authenticationResponse->ok ) {
+			do_action( 'woocommerce_add_pesapal_iframe_error', $authenticationResponse->message );
+			return;
+		}
+
+		$registerIpnResponse = $this->register_ipn($authenticationResponse->data->token);
+
+		if ( false === $registerIpnResponse->ok ) {
+			do_action( 'woocommerce_add_pesapal_iframe_error', $registerIpnResponse->message );
+			return;
+		}
+
+		$order_description = get_bloginfo( 'name' ) . ' Checkout - ' . $order->get_billing_first_name() . ' ' . $order->get_billing_last_name();
+
+		$options = (object) array(
+      "amount" => $order->get_total(),
+      "callback_url" => wc_get_endpoint_url( 'order-received', $order->get_id() ),
+      "currency" => $order->get_currency(),
+      "description" => $order_description,
+      "id" => $order->get_order_key(),
+      "notification_id" => $registerIpnResponse->data->ipn_id,
+			// extras
+			"billing_address" => array(
+        "email_address" => $order->get_billing_email()
+      ),
+    );
+
+		$orderRequestResponse = $this->submit_order_request( $options, $authenticationResponse->data->token );
+
+		if ( false === $registerIpnResponse->ok ) {
+			do_action( 'woocommerce_add_pesapal_iframe_error', $orderRequestResponse->message );
+			return;
+		}
+
+		$newPaymentData = array(
+      'amount_paid' 			=> $order->get_total(),
+      'currency' 					=> $order->get_currency(),
+			'merchant_reference'=> $orderRequestResponse->data->merchant_reference, // same as $order->get_order_key()
+      'order_id' 					=> $order->get_id(),
+      'order_tracking_id' => $orderRequestResponse->data->order_tracking_id,
+      'token' 						=> $authenticationResponse->data->token
+    );
+
+		do_action( 'woocommerce_add_pesapal_iframe', $orderRequestResponse->data->redirect_url );
 	}
 
-	// private function 
+	public function pesapal_ipn_handler() {
+		var_dump($_POST);
+	}
+
+	private function authenticate() {
+		$body = array(
+			'consumer_key' => $this->consumer_key,
+			'consumer_secret' => $this->consumer_secret
+		);
+
+		$response = wp_remote_post( $this->get_pesapal_endpoint_url() . $this->authentication_api_url, array(
+			'body' => json_encode( $body ),
+			'headers' => array(
+				'Content-Type' => 'application/json',
+				'Accept' => 'application/json',
+			),
+		));
+
+		if (is_wp_error($response)) {
+			// Handle the error
+			return (object) array(
+				'ok' => false,
+				'message' => $response->get_error_message(),
+			);
+		}
+
+		if ( 200 != wp_remote_retrieve_response_code($response) ) {
+			// Handle the error
+			return (object) array(
+				'ok' => false,
+				'message' => wp_remote_retrieve_response_message($response),
+			);
+		}
+		
+		// Request was successful
+		$body = wp_remote_retrieve_body($response);
+
+		return (object) array(
+			'ok' => true,
+			'data' => json_decode($body)
+		);
+	}
+
+	private function register_ipn(String $token) {
+		$body = array(
+			"url" => $this->get_pesapal_ipn_url(),
+      "ipn_notification_type" => "POST",
+		);
+
+		$response = wp_remote_post( $this->get_pesapal_endpoint_url() . $this->register_ipn_api_url, array(
+			'body' => json_encode( $body ),
+			'headers' => array(
+				'Content-Type' => 'application/json',
+				'Accept' => 'application/json',
+				'Authorization' => 'Bearer ' . $token
+			),
+		));
+
+		if (is_wp_error($response)) {
+			// Handle the error
+			return (object) array(
+				'ok' => false,
+				'message' => $response->get_error_message(),
+			);
+		}
+
+		if ( 200 != wp_remote_retrieve_response_code($response) ) {
+			// Handle the error
+			return (object) array(
+				'ok' => false,
+				'message' => wp_remote_retrieve_response_message($response),
+			);
+		}
+
+		// Request was successful
+		$body = wp_remote_retrieve_body($response);
+
+		return (object) array(
+			'ok' => true,
+			'data' => json_decode($body)
+		);
+	}
+
+	private function submit_order_request(Object $body, String $token) {
+		$response = wp_remote_post( $this->get_pesapal_endpoint_url() . $this->submit_order_request_api_url, array(
+			'body' => json_encode( $body ),
+			'headers' => array(
+				'Content-Type' => 'application/json',
+				'Accept' => 'application/json',
+				'Authorization' => 'Bearer ' . $token
+			),
+		));
+
+		if ( is_wp_error($response) ) {
+			// Handle the error
+			return (object) array(
+				'ok' => false,
+				'message' => $response->get_error_message(),
+			);
+		}
+
+		if ( 200 != wp_remote_retrieve_response_code($response) ) {
+			// Handle the error
+			return (object) array(
+				'ok' => false,
+				'message' => wp_remote_retrieve_response_message($response),
+			);
+		}
+		
+		// Request was successful
+		$body = wp_remote_retrieve_body($response);
+
+		return (object) array(
+			'ok' => true,
+			'data' => json_decode($body)
+		);
+	} 
 }

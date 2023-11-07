@@ -22,7 +22,7 @@ function add_pesapal_iframe( $iframe_url = '' ) {
   ?>
 
   <div class="pesapal__iframe">
-    <iframe src="<?= $iframe_url ?>" frameborder="0" >
+    <iframe src="<?= $iframe_url ?>" frameborder="0">
     </iframe>
   </div>
 
@@ -33,7 +33,7 @@ function add_pesapal_iframe_error( $message = '' ) {
   ?>
 
   <div class="pesapal__iframe iframe--error">
-    <p><?= $message ?></p>
+    <p><?= esc_html( $message ) ?></p>
   </div>
 
   <?php
