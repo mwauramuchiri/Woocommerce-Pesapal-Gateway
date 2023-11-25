@@ -92,6 +92,7 @@ function update_pesapal_payment($id, $payment) {
   global $table_name;
 
   $query = "UPDATE `$table_name` SET
+    `amount_paid` = '$payment->amount_paid',
     `payment_method` = '$payment->payment_method',
     `payment_account` = '$payment->payment_account',
     `payment_status_description` = '$payment->payment_status_description',
