@@ -31,12 +31,12 @@ function create_payment_table() {
     UNIQUE KEY `merchant_reference` (`merchant_reference`)
   ) ENGINE=InnoDB AUTO_INCREMENT=10 $charset_collate;";
 
-  require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+  require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 
   try {
     dbDelta( $query );
   } catch(Exception $err) {
-    var_dump($err);
+    // var_dump($err);
   }
 }
 
@@ -76,13 +76,13 @@ function add_pesapal_payment($payment) {
     );";
   //
 
-  require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+  require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 
   try {
     dbDelta( $query );
     return true;
   } catch(Exception $err) {
-    var_dump($err);
+    // var_dump($err);
     return false;
   }
 }
@@ -101,13 +101,13 @@ function update_pesapal_payment($id, $payment) {
     WHERE `$table_name`.`id` = $id";
   //
 
-  require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+  require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 
   try {
     dbDelta( $query );
     return true;
   } catch(Exception $err) {
-    var_dump($err);
+    // var_dump($err);
     return false;
   }
 }
@@ -121,7 +121,7 @@ function get_payment_by_order_id($order_id) {
   try {
     return $wpdb->get_row( $query );
   } catch(Exception $err) {
-    var_dump($err);
+    // var_dump($err);
     return false;
   }
 }
@@ -135,7 +135,7 @@ function get_payment_by_order_tracking_id($order_tracking_id) {
   try {
     return $wpdb->get_row( $query );
   } catch(Exception $err) {
-    var_dump($err);
+    // var_dump($err);
     return false;
   }
 }
