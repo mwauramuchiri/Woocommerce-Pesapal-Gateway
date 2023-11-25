@@ -88,7 +88,6 @@ function add_pesapal_payment($payment) {
 }
 
 function update_pesapal_payment($id, $payment) {
-  global $wpdb;
   global $table_name;
 
   $query = "UPDATE `$table_name` SET

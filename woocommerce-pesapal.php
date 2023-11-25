@@ -29,7 +29,7 @@ require_once plugin_dir_path( __FILE__ ) . '/includes/pesapal-db.php';
 register_activation_hook( __FILE__, 'create_payment_table' );
 
 function woo_pesapal_payment_init() {
-	if ( class_exists( 'WC_Payment_Gateway' )) {
+	if ( class_exists( 'WC_Payment_Gateway' ) ) {
 		require_once plugin_dir_path( __FILE__ ) . '/includes/class-wc-pesapal-payment-gateway.php';
 		require_once plugin_dir_path( __FILE__ ) . '/includes/pesapal-order-pay.php';
 	}

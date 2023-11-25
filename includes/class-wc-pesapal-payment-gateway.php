@@ -35,7 +35,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 
     add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
     add_action( 'woocommerce_pay_order_before_payment_' . $this->id, array( $this, 'process_pesapal_iframe_url' ), 1, 1 );
-		add_action( 'woocommerce_api_' . $this->id, array( $this, 'pesapal_ipn_handler' ));
+		add_action( 'woocommerce_api_' . $this->id, array( $this, 'pesapal_ipn_handler' ) );
 	}
 
   /**
@@ -56,14 +56,14 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 	 */
 	public function init_form_fields() {
 		$this->form_fields = array(
-			'enabled'            => array(
+			'enabled'       => array(
 				'title'       => __( 'Enable/Disable', 'woocommerce-pesapal-gateway' ),
 				'label'       => __( 'Enable Pesapal', 'woocommerce-pesapal-gateway' ),
 				'type'        => 'checkbox',
 				'description' => '',
 				'default'     => 'no',
 			),
-			'title'              => array(
+			'title'         => array(
 				'title'       => __( 'Title', 'woocommerce-pesapal-gateway' ),
 				'type'        => 'text',
 				'description' => __( 'Pesapal method description that the customer will see on your checkout.', 'woocommerce-pesapal-gateway' ),
@@ -89,21 +89,21 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 				'description' => '',
 				'default'     => 'no',
 			),
-			'description'        => array(
+			'description'   => array(
 				'title'       => __( 'Description', 'woocommerce-pesapal-gateway' ),
 				'type'        => 'textarea',
 				'description' => __( 'Pesapal method description that the customer will see on your website.', 'woocommerce-pesapal-gateway' ),
 				'default'     => __( 'Pesapal before delivery.', 'woocommerce-pesapal-gateway' ),
 				'desc_tip'    => true,
 			),
-			'instructions'       => array(
+			'instructions'  => array(
 				'title'       => __( 'Instructions', 'woocommerce-pesapal-gateway' ),
 				'type'        => 'textarea',
 				'description' => __( 'Instructions that will be added to the thank you page.', 'woocommerce-pesapal-gateway' ),
 				'default'     => __( 'Pesapal before delivery.', 'woocommerce-pesapal-gateway' ),
 				'desc_tip'    => true,
 			),
-			'dev_ipn_url'       => array(
+			'dev_ipn_url'   => array(
 				'title'       => __( 'Dev IPN URL', 'woocommerce-pesapal-gateway' ),
 				'type'        => 'text',
 				'description' => __( 'IPN URL that pesapal API will call', 'woocommerce-pesapal-gateway' ),
@@ -159,7 +159,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 		$payment = get_payment_by_order_id( $order->get_id() );
 	
 		if (
-			false !== $payment && !empty($payment)
+			false !== $payment && !empty( $payment )
 			&& 1 === (int) $payment->status_code
 			&& 'Completed' === $payment->payment_status_description
 		) {
@@ -178,7 +178,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			return;
 		}
 
-		if ( false !== $payment && !empty($payment)) {
+		if ( false !== $payment && !empty( $payment ) ) {
 			$options = (object) array(
 				'token' => $authenticationResponse->data->token,
 				'orderTrackingId' => $payment->order_tracking_id
@@ -216,7 +216,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			// ! hell ikifika hapa. dk what to do
 		}
 
-		$registerIpnResponse = $this->register_ipn($authenticationResponse->data->token);
+		$registerIpnResponse = $this->register_ipn( $authenticationResponse->data->token );
 
 		if ( false === $registerIpnResponse->ok ) {
 			do_action( 'woocommerce_add_pesapal_iframe_error', $registerIpnResponse->message );
@@ -262,7 +262,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			add_pesapal_payment( $newPaymentData );
 		}
 
-		if ( !isset($orderRequestResponse->data->redirect_url) ) {
+		if ( !isset( $orderRequestResponse->data->redirect_url ) ) {
 			!do_action( 'woocommerce_add_pesapal_iframe_error', 'Error loading Pesapal' );
 			return;
 		}
@@ -273,7 +273,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 	public function pesapal_ipn_handler() {
 		$payment = get_payment_by_order_tracking_id( $_GET['OrderTrackingId'] );
 
-		if ( false === $payment || empty($payment) ) {
+		if ( false === $payment || empty( $payment ) ) {
 			error_log('pesapal_ipn_handler::payment::false::start');
 			error_log('');
 			error_log( json_encode( $_GET ));
@@ -332,7 +332,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			),
 		));
 
-		if (is_wp_error($response)) {
+		if ( is_wp_error( $response ) ) {
 			// Handle the error
 			return (object) array(
 				'ok' => false,
@@ -340,20 +340,20 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			);
 		}
 
-		if ( 200 != wp_remote_retrieve_response_code($response) ) {
+		if ( 200 != wp_remote_retrieve_response_code( $response ) ) {
 			// Handle the error
 			return (object) array(
 				'ok' => false,
-				'message' => wp_remote_retrieve_response_message($response),
+				'message' => wp_remote_retrieve_response_message( $response ),
 			);
 		}
 		
 		// Request was successful
-		$body = wp_remote_retrieve_body($response);
+		$body = wp_remote_retrieve_body( $response );
 
-		$errors = $this->get_error_from_body( json_decode($body) );
+		$errors = $this->get_error_from_body( json_decode( $body ) );
 
-		if ( isset($errors) ) {
+		if ( isset( $errors ) ) {
 			// Handle the error
 			return (object) array(
 				'ok' => false,
@@ -363,11 +363,11 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 
 		return (object) array(
 			'ok' => true,
-			'data' => json_decode($body)
+			'data' => json_decode( $body )
 		);
 	}
 
-	private function register_ipn(String $token) {
+	private function register_ipn( String $token ) {
 		$body = array(
 			"url" => $this->get_pesapal_ipn_url(),
       "ipn_notification_type" => "GET",
@@ -382,7 +382,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			),
 		));
 
-		if (is_wp_error($response)) {
+		if ( is_wp_error($response) ) {
 			// Handle the error
 			return (object) array(
 				'ok' => false,
@@ -390,20 +390,20 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			);
 		}
 
-		if ( 200 != wp_remote_retrieve_response_code($response) ) {
+		if ( 200 != wp_remote_retrieve_response_code( $response ) ) {
 			// Handle the error
 			return (object) array(
 				'ok' => false,
-				'message' => wp_remote_retrieve_response_message($response),
+				'message' => wp_remote_retrieve_response_message( $response ),
 			);
 		}
 
 		// Request was successful
-		$body = wp_remote_retrieve_body($response);
+		$body = wp_remote_retrieve_body( $response );
 
-		$errors = $this->get_error_from_body( json_decode($body) );
+		$errors = $this->get_error_from_body( json_decode( $body ) );
 
-		if ( isset($errors) ) {
+		if ( isset( $errors ) ) {
 			// Handle the error
 			return (object) array(
 				'ok' => false,
@@ -413,11 +413,11 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 
 		return (object) array(
 			'ok' => true,
-			'data' => json_decode($body)
+			'data' => json_decode( $body )
 		);
 	}
 
-	private function submit_order_request(Object $body, String $token) {
+	private function submit_order_request( Object $body, String $token ) {
 		$response = wp_remote_post( $this->get_pesapal_endpoint_url() . $this->submit_order_request_api_url, array(
 			'body' => json_encode( $body ),
 			'headers' => array(
@@ -428,7 +428,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			'verify' => FALSE,
 		));
 
-		if ( is_wp_error($response) ) {
+		if ( is_wp_error( $response ) ) {
 			// Handle the error
 			return (object) array(
 				'ok' => false,
@@ -436,20 +436,20 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			);
 		}
 
-		if ( 200 != wp_remote_retrieve_response_code($response) ) {
+		if ( 200 != wp_remote_retrieve_response_code( $response ) ) {
 			// Handle the error
 			return (object) array(
 				'ok' => false,
-				'message' => wp_remote_retrieve_response_message($response),
+				'message' => wp_remote_retrieve_response_message( $response ),
 			);
 		}
 
 		// Request might be successful
-		$body = wp_remote_retrieve_body($response);
+		$body = wp_remote_retrieve_body( $response );
 
-		$errors = $this->get_error_from_body( json_decode($body) );
+		$errors = $this->get_error_from_body( json_decode( $body ) );
 
-		if ( isset($errors) ) {
+		if ( isset( $errors ) ) {
 			// Handle the error
 			return (object) array(
 				'ok' => false,
@@ -475,7 +475,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			'verify' => FALSE,
 		));
 
-		if (is_wp_error($response)) {
+		if (is_wp_error( $response )) {
 			// Handle the error
 			return (object) array(
 				'ok' => false,
@@ -483,20 +483,20 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			);
 		}
 
-		if ( 200 != wp_remote_retrieve_response_code($response) ) {
+		if ( 200 != wp_remote_retrieve_response_code( $response ) ) {
 			// Handle the error
 			return (object) array(
 				'ok' => false,
-				'message' => wp_remote_retrieve_response_message($response),
+				'message' => wp_remote_retrieve_response_message( $response ),
 			);
 		}
 		
 		// Request was successful
-		$body = wp_remote_retrieve_body($response);
+		$body = wp_remote_retrieve_body( $response );
 
-		$errors = $this->get_error_from_body( json_decode($body) );
+		$errors = $this->get_error_from_body( json_decode( $body ) );
 
-		if ( isset($errors) ) {
+		if ( isset( $errors ) ) {
 			// Handle the error
 			return (object) array(
 				'ok' => false,
@@ -506,7 +506,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 
 		return (object) array(
 			'ok' => true,
-			'data' => json_decode($body)
+			'data' => json_decode( $body )
 		);
 	}
 
