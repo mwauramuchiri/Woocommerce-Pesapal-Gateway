@@ -160,10 +160,10 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 	
 		if (
 			false !== $payment && !empty($payment)
-			&& 200 === (int) $payment->status_code
+			&& 1 === (int) $payment->status_code
 			&& 'Completed' === $payment->payment_status_description
 		) {
-			$order->update_status( 'pending' );
+			$order->update_status( 'Processing' );
 			WC()->cart->empty_cart();
 			// redirect to order received
 			wp_redirect( wc_get_endpoint_url( 'order-received', $order->get_id() ) );
@@ -202,10 +202,10 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			update_pesapal_payment( $payment->id, $paymentOtherData );
 
 			if (
-				200 === (int) $orderStatusResponse->data->status_code
+				1 === (int) $orderStatusResponse->data->status_code
 				&& 'Completed' === $orderStatusResponse->data->payment_status_description
 			) {
-				$order->update_status( 'pending' );
+				$order->update_status( 'Processing' );
 				WC()->cart->empty_cart();
 
 				// redirect to order received
@@ -230,7 +230,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
       "callback_url" => wc_get_endpoint_url( 'order-received', $order->get_id() ),
       "currency" => $order->get_currency(),
       "description" => $order_description,
-      "id" => $order->get_order_key(),
+      "id" => $order->get_order_key() . '_' . time(), // needs to be unique
       "notification_id" => $registerIpnResponse->data->ipn_id,
 			// extras
 			"billing_address" => array(
@@ -253,7 +253,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			$newPaymentData = (object) array(
 				'order_id' 					=> $order->get_id(),
 				'order_tracking_id' => $orderRequestResponse->data->order_tracking_id,
-				'merchant_reference'=> $orderRequestResponse->data->merchant_reference, // same as $order->get_order_key()
+				'merchant_reference'=> $orderRequestResponse->data->merchant_reference, // same as ($order->get_order_key() + date()->now())
 				'token' 						=> $authenticationResponse->data->token,
 				'amount_paid' 			=> $order->get_total(),
 				'currency' 					=> $order->get_currency(),
@@ -271,16 +271,18 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 	}
 
 	public function pesapal_ipn_handler() {
-		$order_id = wc_get_order_id_by_order_key($_GET['OrderMerchantReference']);
-		$order = wc_get_order( $order_id );
-		$payment = get_payment_by_order_id( $order_id );
+		$payment = get_payment_by_order_tracking_id( $_GET['OrderTrackingId'] );
 
-		if ( false === $payment ) {
-			var_dump($payment);
+		if ( false === $payment || empty($payment) ) {
+			error_log('pesapal_ipn_handler::payment::false::start');
+			error_log('');
+			error_log( json_encode( $_GET ));
+			error_log('');
+			error_log('pesapal_ipn_handler::payment::false::end');
 			return;
 		}
 
-		// error_log( json_encode( $payment ) );
+		$order = wc_get_order( $payment->order_id );
 
 		$options = (object) array(
       'token' => $payment->token,
@@ -301,14 +303,18 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			update_pesapal_payment( $payment->id, $paymentOtherData );
 
 			if (
-				200 === (int) $orderStatusResponse->data->status_code
+				1 === (int) $orderStatusResponse->data->status_code
 				&& 'Completed' === $orderStatusResponse->data->payment_status_description
 			) {
-				$order->update_status( 'pending' );
+				$order->update_status( 'Processing' );
 				WC()->cart->empty_cart();
 			}
 		} else {
+			error_log('pesapal_ipn_handler::orderStatusResponse->ok::false::start');
+			error_log('');
 			error_log( json_encode( $orderStatusResponse ) );
+			error_log('');
+			error_log('pesapal_ipn_handler::orderStatusResponse->ok::false::end');
 		}
 	}
 

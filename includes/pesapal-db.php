@@ -119,7 +119,19 @@ function get_payment_by_order_id($order_id) {
 
   $query = "SELECT * FROM `$table_name` WHERE `order_id` = '$order_id'";
 
-  require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+  try {
+    return $wpdb->get_row( $query );
+  } catch(Exception $err) {
+    var_dump($err);
+    return false;
+  }
+}
+
+function get_payment_by_order_tracking_id($order_tracking_id) {
+  global $wpdb;
+  global $table_name;
+
+  $query = "SELECT * FROM `$table_name` WHERE `order_tracking_id` = '$order_tracking_id'";
 
   try {
     return $wpdb->get_row( $query );
