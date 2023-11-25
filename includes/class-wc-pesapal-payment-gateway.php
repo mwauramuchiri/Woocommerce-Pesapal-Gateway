@@ -163,9 +163,9 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			&& 1 === (int) $payment->status_code
 			&& 'Completed' === $payment->payment_status_description
 		) {
-			$order->update_status( 'Processing' );
+			$order->update_status( 'processing' );
 			WC()->cart->empty_cart();
-			// redirect to order received
+			// // redirect to order received
 			wp_redirect( wc_get_endpoint_url( 'order-received', $order->get_id() ) );
 
 			return;
@@ -205,7 +205,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 				1 === (int) $orderStatusResponse->data->status_code
 				&& 'Completed' === $orderStatusResponse->data->payment_status_description
 			) {
-				$order->update_status( 'Processing' );
+				$order->update_status( 'processing' );
 				WC()->cart->empty_cart();
 
 				// redirect to order received
@@ -306,7 +306,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 				1 === (int) $orderStatusResponse->data->status_code
 				&& 'Completed' === $orderStatusResponse->data->payment_status_description
 			) {
-				$order->update_status( 'Processing' );
+				$order->update_status( 'processing' );
 				WC()->cart->empty_cart();
 			}
 		} else {
