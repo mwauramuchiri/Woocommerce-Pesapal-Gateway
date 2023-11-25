@@ -1,10 +1,10 @@
 <?php
-
 class WC_Gateway_Pesapal extends WC_Payment_Gateway {
   public $consumer_key;
   public $consumer_secret;
   public $instructions;
   public $enable_for_methods;
+	public $contact_us_whatsapp = '+254 714013670';
 
 	private $pesapal_endpoint_demo_url = 'https://cybqa.pesapal.com/pesapalv3';
 	private $pesapal_endpoint_production_url = 'https://pay.pesapal.com/v3';
@@ -156,6 +156,26 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 	}
 
 	public function process_pesapal_iframe_url( $order ) {
+		$payment = get_payment_by_order_id( $order->get_id() );
+
+		if ( false !== $payment && !empty($payment)) {
+			$options = (object) array(
+				'token' => $payment->token,
+				'orderTrackingId' => $payment->order_tracking_id
+			);
+
+			$orderStatus = $this->get_order_status($options);
+
+			if ( false === $orderStatus->ok ) {
+				do_action( 'woocommerce_add_pesapal_iframe_error', $orderStatus->message );
+				return;
+			}
+			
+			var_dump($orderStatus);
+
+			return;
+		}
+
 		$authenticationResponse = $this->authenticate();
 
 		if ( false === $authenticationResponse->ok ) {
@@ -187,25 +207,63 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 
 		$orderRequestResponse = $this->submit_order_request( $options, $authenticationResponse->data->token );
 
-		if ( false === $registerIpnResponse->ok ) {
+		if ( false === $orderRequestResponse->ok ) {
 			do_action( 'woocommerce_add_pesapal_iframe_error', $orderRequestResponse->message );
 			return;
 		}
 
-		$newPaymentData = array(
-      'amount_paid' 			=> $order->get_total(),
-      'currency' 					=> $order->get_currency(),
-			'merchant_reference'=> $orderRequestResponse->data->merchant_reference, // same as $order->get_order_key()
-      'order_id' 					=> $order->get_id(),
-      'order_tracking_id' => $orderRequestResponse->data->order_tracking_id,
-      'token' 						=> $authenticationResponse->data->token
-    );
+		$payment = get_payment_by_order_id( $order->get_id() );
+
+		if ( false === $payment) {
+			$newPaymentData = (object) array(
+				'order_id' 					=> $order->get_id(),
+				'order_tracking_id' => $orderRequestResponse->data->order_tracking_id,
+				'merchant_reference'=> $orderRequestResponse->data->merchant_reference, // same as $order->get_order_key()
+				'token' 						=> $authenticationResponse->data->token,
+				'amount_paid' 			=> $order->get_total(),
+				'currency' 					=> $order->get_currency(),
+			);
+	
+			add_pesapal_payment( $newPaymentData );
+		}
+
+		error_log( json_encode( $orderRequestResponse ) );
 
 		do_action( 'woocommerce_add_pesapal_iframe', $orderRequestResponse->data->redirect_url );
 	}
 
 	public function pesapal_ipn_handler() {
-		var_dump($_POST);
+		$order_id = wc_get_order_id_by_order_key($_GET['OrderMerchantReference']);
+		$order = wc_get_order( $order_id );
+		$payment = get_payment_by_order_id( $order_id );
+
+		if ( false === $payment ) {
+			var_dump($payment);
+			return;
+		}
+
+		error_log( json_encode( $payment ) );
+
+		$options = (object) array(
+      'token' => $payment['token'],
+      'orderTrackingId' => $payment['order_tracking_id']
+    );
+
+		$orderStatusResponse = $this->get_order_status( $options );
+
+		if ( false !== $orderStatusResponse->ok ) {
+			$paymentOtherData = array(
+				"amount_paid" => $orderStatusResponse->data->amount, // update this too
+				"payment_method" => $orderStatusResponse->data->payment_method,
+				"payment_account" => $orderStatusResponse->data->payment_account,
+				"payment_status_description" => $orderStatusResponse->data->payment_status_description,
+				"status_code" => $orderStatusResponse->data->status
+			);
+
+			update_pesapal_payment( $payment['id'], $paymentOtherData );
+		} else {
+			error_log( json_encode( $orderStatusResponse ) );
+		}
 	}
 
 	private function authenticate() {
@@ -250,7 +308,7 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 	private function register_ipn(String $token) {
 		$body = array(
 			"url" => $this->get_pesapal_ipn_url(),
-      "ipn_notification_type" => "POST",
+      "ipn_notification_type" => "GET",
 		);
 
 		$response = wp_remote_post( $this->get_pesapal_endpoint_url() . $this->register_ipn_api_url, array(
@@ -295,9 +353,49 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 				'Accept' => 'application/json',
 				'Authorization' => 'Bearer ' . $token
 			),
+			'verify' => FALSE,
 		));
 
 		if ( is_wp_error($response) ) {
+			// Handle the error
+			return (object) array(
+				'ok' => false,
+				'message' => $response->get_error_message(),
+			);
+		}
+
+		error_log( wp_remote_retrieve_response_code($response) );
+
+		if ( 200 != wp_remote_retrieve_response_code($response) ) {
+			// Handle the error
+			return (object) array(
+				'ok' => false,
+				'message' => wp_remote_retrieve_response_message($response),
+			);
+		}
+
+		// Request was successful
+		$body = wp_remote_retrieve_body($response);
+
+		return (object) array(
+			'ok' => true,
+			'data' => json_decode($body)
+		);
+	}
+
+	private function get_order_status( $options ) {
+		$url = $this->get_pesapal_endpoint_url() . $this->get_transaction_status_api_url . '?orderTrackingId=' . $options->orderTrackingId;
+		
+		$response = wp_remote_get($url, array(
+			'headers' => array(
+				'Content-Type' => 'application/json',
+				'Accept' => 'application/json',
+				'Authorization' => 'Bearer ' . $options->token
+			),
+			'verify' => FALSE,
+		));
+
+		if (is_wp_error($response)) {
 			// Handle the error
 			return (object) array(
 				'ok' => false,
@@ -320,5 +418,5 @@ class WC_Gateway_Pesapal extends WC_Payment_Gateway {
 			'ok' => true,
 			'data' => json_decode($body)
 		);
-	} 
+	}
 }

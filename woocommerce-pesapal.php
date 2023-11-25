@@ -24,11 +24,15 @@ add_action( 'wp_enqueue_scripts', 'pesapal_css');
 add_action( 'plugins_loaded', 'woo_pesapal_payment_init', 11 );
 add_filter( 'woocommerce_payment_gateways', 'add_to_woo_pesapal_payment_gateway');
 
+require_once plugin_dir_path( __FILE__ ) . '/includes/pesapal-db.php';
+
+register_activation_hook( __FILE__, 'create_payment_table' );
 
 function woo_pesapal_payment_init() {
 	if ( class_exists( 'WC_Payment_Gateway' )) {
 		require_once plugin_dir_path( __FILE__ ) . '/includes/class-wc-pesapal-payment-gateway.php';
 		require_once plugin_dir_path( __FILE__ ) . '/includes/pesapal-order-pay.php';
+		require_once plugin_dir_path( __FILE__ ) . '/includes/pesapal-order-request.php';
 	}
 }
 
