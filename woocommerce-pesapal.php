@@ -32,7 +32,6 @@ function woo_pesapal_payment_init() {
 	if ( class_exists( 'WC_Payment_Gateway' )) {
 		require_once plugin_dir_path( __FILE__ ) . '/includes/class-wc-pesapal-payment-gateway.php';
 		require_once plugin_dir_path( __FILE__ ) . '/includes/pesapal-order-pay.php';
-		require_once plugin_dir_path( __FILE__ ) . '/includes/pesapal-order-request.php';
 	}
 }
 
